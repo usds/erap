@@ -12,7 +12,12 @@ from sqlalchemy.engine import Connection, Engine
 from arp_pipeline.config import get_db_connection_string
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_national import LoadCountyData, LoadNationalData
-from arp_pipeline.tiger_utils import get_shp2pgsql_cmd, run_raw_sql, staging_schema, Shp2PGSqlMode
+from arp_pipeline.tiger_utils import (
+    Shp2PGSqlMode,
+    get_shp2pgsql_cmd,
+    run_raw_sql,
+    staging_schema,
+)
 
 DB_CONN = get_db_connection_string()
 CWD = os.path.abspath(os.getcwd())

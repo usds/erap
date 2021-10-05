@@ -1,6 +1,6 @@
 from contextlib import contextmanager
-from typing import Generator, Optional
 from enum import Enum
+from typing import Generator, Optional
 
 from plumbum.cmd import psql, shp2pgsql
 from plumbum.commands.base import Pipeline
@@ -52,11 +52,16 @@ def create_indexes_and_vacuum(engine: Engine) -> None:
 
 
 class Shp2PGSqlMode(str, Enum):
-    CREATE = '-c'
-    APPEND = '-a'
+    CREATE = "-c"
+    APPEND = "-a"
 
 
-def get_shp2pgsql_cmd(db_conn: str, dbf_file_name: str, table_name: str, mode: Shp2PGSqlMode = Shp2PGSqlMode.CREATE) -> Pipeline:
+def get_shp2pgsql_cmd(
+    db_conn: str,
+    dbf_file_name: str,
+    table_name: str,
+    mode: Shp2PGSqlMode = Shp2PGSqlMode.CREATE,
+) -> Pipeline:
     psql_cmd = psql[db_conn]
     shp2pgsql_cmd = shp2pgsql[
         "-D",
