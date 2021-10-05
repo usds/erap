@@ -42,3 +42,12 @@ psql/*
 data
 gisdata/*
 .tmp/
+
+
+# Matt's private utilities
+.envrc
+bootstrap_db.sh
+cleanup.sh
+db_ctl.sh
+luigi.sh
+notes.md
