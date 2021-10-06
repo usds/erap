@@ -27,6 +27,7 @@ in pkgs.mkShell {
     pkgs.mypy
     pkgs.pgcli
     pkgs.gdal_2
+    pkgs.pg_top
     #gisEnv
     (pkgs.postgresql_13.withPackages (p: [ p.postgis ]) )
 

@@ -6,7 +6,7 @@ from zipfile import ZipFile
 
 import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection, Engine
 
 from arp_pipeline.config import get_db_connection_string
@@ -132,11 +132,41 @@ class LoadStateFeature(ABC):
         """Any statements required to create the target table"""
 
     @abstractmethod
-    def finalized_table(self, connection):
+    def finalized_table(self, connection: Connection):
         """Any statements for creating constrants, renames, or indexes"""
 
     def vacuum(self, engine: Engine) -> None:
         run_raw_sql(engine, f"VACUUM ANALYZE tiger_data.{self.table_name}")
+
+    def fixup_staging_schema(self, connection: Connection):
+        """Make the tiger_staging.TABLE_NAME version of a table look like the tiger_data version
+
+        `loader_load_staged_data` can fail if the colunms for a table in `tiger_staging` don't match
+        the columns for the target table in `tiger_data`. Use SQLAlchemy inspection to drop any novel
+        columns in the staging data, and then create NULL-filled columns for any missing data in the
+        staging data. This should be called immediately before `loader_load_staged_data`.
+        """
+        run_sql = lambda statement: run_raw_sql(connection.engine, statement)
+        insp = inspect(connection.engine)
+        staging_cols = insp.get_columns(self.table_name, "tiger_staging")
+        data_cols = insp.get_columns(self.table_name, "tiger_data")
+        staging_not_in_data = set(col["name"] for col in staging_cols) - set(
+            col["name"] for col in data_cols
+        )
+        data_not_in_staging = set(col["name"] for col in data_cols) - set(
+            col["name"] for col in staging_cols
+        )
+        for col_name in staging_not_in_data:
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} DROP COLUMN {col_name} CASCADE;"
+            )
+
+        for col in data_cols:
+            if col["name"] in data_not_in_staging:
+                col_type = col["type"].dialect_impl(connection.engine.dialect).compile()
+                run_sql(
+                    f"ALTER TABLE tiger_staging.{self.table_name} ADD COLUMN {col['name']} {col_type} DEFAULT NULL;"
+                )
 
     def run(self) -> Generator:
         with self.output().engine.connect() as conn:
@@ -157,8 +187,7 @@ class LoadStateFeature(ABC):
                     dbf_file_name=dbf_file_path,
                     table_name=f"tiger_staging.{table_name}",
                 ).with_cwd(dbf_file_dir)()
-                with conn.begin():
-                    self.finalized_table(conn)
+                self.finalized_table(conn)
                 self.vacuum(self.output().engine)
                 with conn.begin():
                     self.output().touch()
@@ -228,22 +257,27 @@ class LoadStatePlaceFeature(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO plcidfp;")
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT uidx_{self.table_name}_gid UNIQUE (gid);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_{self.table_name}_soundex_name ON tiger_data.{self.table_name} USING btree (soundex(name));"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
+        with connection.begin():
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO plcidfp;"
+            )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT uidx_{self.table_name}_gid UNIQUE (gid);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_{self.table_name}_soundex_name ON tiger_data.{self.table_name} USING btree (soundex(name));"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
 
     def vacuum(self, engine: Engine) -> None:
         pass
@@ -266,15 +300,18 @@ class LoadStateCountySubdivisions(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO cosbidfp;"
-        )
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
+        with connection.begin():
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO cosbidfp;"
+            )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
 
 
 class LoadStateTracts(LoadStateFeature, luigi.Task):
@@ -293,16 +330,22 @@ class LoadStateTracts(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO tract_id")
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
+        with connection.begin():
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO tract_id"
+            )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
 
 
 class LoadTabBlocks10(LoadStateFeature, luigi.Task):
@@ -323,18 +366,22 @@ class LoadTabBlocks10(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid10 TO tabblock_id;"
-        )
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
+        with connection.begin():
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid10 TO tabblock_id;"
+            )
+        self.fixup_staging_schema(connection)
+
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
 
 
 class LoadTabBlocks20(LoadStateFeature, luigi.Task):
@@ -351,15 +398,17 @@ class LoadTabBlocks20(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
 
 
 class LoadBlockGroups(LoadStateFeature, luigi.Task):
@@ -377,16 +426,21 @@ class LoadBlockGroups(LoadStateFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO bg_id")
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
+        with connection.begin():
+            run_sql(
+                f"ALTER TABLE tiger_staging.{self.table_name} RENAME geoid TO bg_id"
+            )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
 
 
 class LoadFaces(LoadCountyFeature, luigi.Task):
@@ -403,18 +457,20 @@ class LoadFaces(LoadCountyFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_tfid ON tiger_data.{self.table_name} USING btree (tfid);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_countyfp ON tiger_data.{self.table_name} USING btree (countyfp);"
-        )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_tfid ON tiger_data.{self.table_name} USING btree (tfid);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_countyfp ON tiger_data.{self.table_name} USING btree (countyfp);"
+            )
 
 
 class LoadFeatureNames(LoadCountyFeature, luigi.Task):
@@ -435,22 +491,28 @@ class LoadFeatureNames(LoadCountyFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_snd_name ON tiger_data.{self.table_name} USING btree (soundex(name));"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_lname ON tiger_data.{self.table_name} USING btree (lower(name));"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_tlid_statefp ON tiger_data.{self.table_name} USING btree (tlid, statefp);"
-        )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_snd_name ON tiger_data.{self.table_name} USING btree (soundex(name));"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_lname ON tiger_data.{self.table_name} USING btree (lower(name));"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_tlid_statefp ON tiger_data.{self.table_name} USING btree (tlid, statefp);"
+            )
 
 
 class LoadEdges(LoadCountyFeature, luigi.Task):
     feature_name = "edges"
+
+    def requires(self):
+        yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
+        yield LoadFaces(year=self.year, state_usps=self.state_usps)
 
     def create_table(self, connection: Connection) -> None:
         run_sql = lambda statement: connection.execute(text(statement))
@@ -463,71 +525,75 @@ class LoadEdges(LoadCountyFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_tlid ON tiger_data.{self.table_name} USING btree (tlid);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_tfidr ON tiger_data.{self.table_name} USING btree (tfidr);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_tfidl ON tiger_data.{self.table_name} USING btree (tfidl);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_countyfp ON tiger_data.{self.table_name} USING btree (countyfp);"
-        )
-        run_sql(
-            f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.table_name}_zipl ON tiger_data.{self.table_name} USING btree (zipl);"
-        )
-        run_sql(f"DROP TABLE IF EXISTS tiger_data.{self.state_usps.upper()}_state_loc;")
-        run_sql(
-            f"""CREATE TABLE tiger_data.{self.state_usps.upper()}_state_loc(
-                CONSTRAINT pk_{self.state_usps.upper()}_state_loc PRIMARY KEY(zip, stusps, place)
-            ) INHERITS(tiger.zip_state_loc);"""
-        )
-        run_sql(
-            f"""INSERT INTO tiger_data.{self.state_usps.upper()}_state_loc(zip, stusps, statefp, place)
-                SELECT DISTINCT e.zipl, '{self.state_usps.upper()}', '{self.state_code}', p.name
-                    FROM tiger_data.{self.table_name} AS e
-                    INNER JOIN tiger_data.{self.state_usps}_faces AS f ON (e.tfidl = f.tfid OR e.tfidr = f.tfid)
-                    INNER JOIN tiger_data.{self.state_usps}_place As p ON(f.statefp = p.statefp AND f.placefp = p.placefp )
-                WHERE e.zipl IS NOT NULL;"""
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.state_usps.upper()}_state_loc_place ON tiger_data.{self.state_usps.upper()}_state_loc USING btree(soundex(place));"
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.state_usps.upper()}_state_loc ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
-        run_sql(
-            f"DROP TABLE IF EXISTS tiger_data.{self.state_usps.upper()}_lookup_base;"
-        )
-        run_sql(
-            f"""CREATE TABLE tiger_data.{self.state_usps.upper()}_lookup_base(
-                CONSTRAINT pk_{self.state_usps.upper()}_state_loc_city
-                PRIMARY KEY(zip,state, county, city, statefp)
-                ) INHERITS(tiger.zip_lookup_base);"""
-        )
-        run_sql(
-            f"""INSERT INTO tiger_data.{self.state_usps.upper()}_lookup_base(zip,state,county,city, statefp)
-                SELECT DISTINCT e.zipl, '{self.state_usps.upper()}', c.name,p.name,'{self.state_code}'
-                    FROM tiger_data.{self.table_name} AS e
-                    INNER JOIN tiger.county As c  ON (e.countyfp = c.countyfp AND e.statefp = c.statefp AND e.statefp = '{self.state_code}')
-                    INNER JOIN tiger_data.{self.state_usps}_faces AS f ON (e.tfidl = f.tfid OR e.tfidr = f.tfid)
-                    INNER JOIN tiger_data.{self.state_usps}_place As p ON(f.statefp = p.statefp AND f.placefp = p.placefp )
-                WHERE e.zipl IS NOT NULL;"""
-        )
-        run_sql(
-            f"ALTER TABLE tiger_data.{self.state_usps.upper()}_lookup_base ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
-        )
-        run_sql(
-            f"CREATE INDEX idx_tiger_data_{self.state_usps.upper()}_lookup_base_citysnd ON tiger_data.{self.state_usps.upper()}_lookup_base USING btree(soundex(city));"
-        )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_tlid ON tiger_data.{self.table_name} USING btree (tlid);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_tfidr ON tiger_data.{self.table_name} USING btree (tfidr);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_tfidl ON tiger_data.{self.table_name} USING btree (tfidl);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_countyfp ON tiger_data.{self.table_name} USING btree (countyfp);"
+            )
+            run_sql(
+                f"CREATE INDEX tiger_data_{self.table_name}_the_geom_gist ON tiger_data.{self.table_name} USING gist(the_geom);"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.table_name}_zipl ON tiger_data.{self.table_name} USING btree (zipl);"
+            )
+            run_sql(
+                f"DROP TABLE IF EXISTS tiger_data.{self.state_usps.upper()}_state_loc;"
+            )
+            run_sql(
+                f"""CREATE TABLE tiger_data.{self.state_usps.upper()}_state_loc(
+                    CONSTRAINT pk_{self.state_usps.upper()}_state_loc PRIMARY KEY(zip, stusps, place)
+                ) INHERITS(tiger.zip_state_loc);"""
+            )
+            run_sql(
+                f"""INSERT INTO tiger_data.{self.state_usps.upper()}_state_loc(zip, stusps, statefp, place)
+                    SELECT DISTINCT e.zipl, '{self.state_usps.upper()}', '{self.state_code}', p.name
+                        FROM tiger_data.{self.table_name} AS e
+                        INNER JOIN tiger_data.{self.state_usps}_faces AS f ON (e.tfidl = f.tfid OR e.tfidr = f.tfid)
+                        INNER JOIN tiger_data.{self.state_usps}_place As p ON(f.statefp = p.statefp AND f.placefp = p.placefp )
+                    WHERE e.zipl IS NOT NULL;"""
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.state_usps.upper()}_state_loc_place ON tiger_data.{self.state_usps.upper()}_state_loc USING btree(soundex(place));"
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.state_usps.upper()}_state_loc ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
+            run_sql(
+                f"DROP TABLE IF EXISTS tiger_data.{self.state_usps.upper()}_lookup_base;"
+            )
+            run_sql(
+                f"""CREATE TABLE tiger_data.{self.state_usps.upper()}_lookup_base(
+                    CONSTRAINT pk_{self.state_usps.upper()}_state_loc_city
+                    PRIMARY KEY(zip,state, county, city, statefp)
+                    ) INHERITS(tiger.zip_lookup_base);"""
+            )
+            run_sql(
+                f"""INSERT INTO tiger_data.{self.state_usps.upper()}_lookup_base(zip,state,county,city, statefp)
+                    SELECT DISTINCT e.zipl, '{self.state_usps.upper()}', c.name,p.name,'{self.state_code}'
+                        FROM tiger_data.{self.table_name} AS e
+                        INNER JOIN tiger.county As c  ON (e.countyfp = c.countyfp AND e.statefp = c.statefp AND e.statefp = '{self.state_code}')
+                        INNER JOIN tiger_data.{self.state_usps}_faces AS f ON (e.tfidl = f.tfid OR e.tfidr = f.tfid)
+                        INNER JOIN tiger_data.{self.state_usps}_place As p ON(f.statefp = p.statefp AND f.placefp = p.placefp )
+                    WHERE e.zipl IS NOT NULL;"""
+            )
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.state_usps.upper()}_lookup_base ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
+            run_sql(
+                f"CREATE INDEX idx_tiger_data_{self.state_usps.upper()}_lookup_base_citysnd ON tiger_data.{self.state_usps.upper()}_lookup_base USING btree(soundex(city));"
+            )
 
     def vacuum(self, engine):
         run_raw_sql(engine, f"vacuum analyze tiger_data.{self.table_name};")
@@ -555,9 +621,11 @@ class LoadAddr(LoadCountyFeature, luigi.Task):
 
     def finalized_table(self, connection: Connection):
         run_sql = lambda statement: connection.execute(text(statement))
-        run_sql(
-            f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
-        )
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
 
 
 class LoadStateFeatures(luigi.WrapperTask):
@@ -566,20 +634,21 @@ class LoadStateFeatures(luigi.WrapperTask):
     resources = {"max_workers": 1}
 
     def requires(self):
-        # yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
+        yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
+        yield LoadFaces(year=self.year, state_usps=self.state_usps)
         yield LoadStateCountySubdivisions(year=self.year, state_usps=self.state_usps)
         yield LoadStateTracts(year=self.year, state_usps=self.state_usps)
-        # yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
-        # yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
-        # yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
-        # yield LoadFaces(year=self.year, state_usps=self.state_usps)
-        # yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
-        # yield LoadEdges(year=self.year, state_usps=self.state_usps)
+        yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
+        if self.year > 2019:
+            yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
+        yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
+        yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
+        yield LoadEdges(year=self.year, state_usps=self.state_usps)
         yield LoadAddr(year=self.year, state_usps=self.state_usps)
 
 
 class LoadAllStateFeatures(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2015)
+    year = luigi.IntParameter(default=2019)
     STATE_USPSES = [
         "WV",
         "FL",

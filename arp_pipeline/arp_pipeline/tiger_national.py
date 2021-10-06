@@ -203,7 +203,7 @@ class LoadCountyData(luigi.Task):
 
 
 class LoadNationalData(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2015)
+    year = luigi.IntParameter(default=2019)
 
     def requires(self) -> Iterable[Union[LoadCountyData, LoadStateData]]:
         yield LoadStateData(year=self.year)
