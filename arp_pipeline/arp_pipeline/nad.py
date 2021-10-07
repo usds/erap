@@ -83,6 +83,8 @@ class LoadNADData(luigi.Task):
                 ogr2ogr[
                     "-overwrite",
                     f"{self.get_ogr_connection_string()}",
+                    "-nlt",
+                    "PROMOTE_TO_MULTI",
                     "-t_srs",
                     "EPSG:4269",  # Reproject these data into the same geometry TIGER uses
                     "-lco",
