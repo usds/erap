@@ -105,3 +105,6 @@ class LoadNADData(luigi.Task):
                 run_sql("CREATE SCHEMA addresses;")
                 run_sql("ALTER TABLE addresses_staging.nad SET SCHEMA addresses;")
                 run_sql("DROP SCHEMA IF EXISTS addresses_staging CASCADE;")
+                run_sql(
+                    "CREATE INDEX idx_nad_address_state on addresses.nad USING btree (state);"
+                )

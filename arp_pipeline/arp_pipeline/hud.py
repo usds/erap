@@ -48,14 +48,13 @@ class LoadHudData(luigi.Task):
             update_id=f"create_{self.fiscal_year}_income_limits",
         )
 
-
     def _extract(self) -> None:
-        self.data = pd.read_excel(self.input().path, dtype='object')
+        self.data = pd.read_excel(self.input().path, dtype="object")
 
     def _transform(self) -> None:
         self.data = clean_frame(self.data)
-        self.data['cntyidfp'] = self.data.fips2010.str.replace('99999', '')
-        self.data.loc[~self.data.fips2010.str.endswith('99999'), 'cntyidfp'] = None
+        self.data["cntyidfp"] = self.data.fips2010.str.replace("99999", "")
+        self.data.loc[~self.data.fips2010.str.endswith("99999"), "cntyidfp"] = None
 
     def _load(self, connection: Connection) -> None:
         run_sql = lambda statement: connection.execute(text(statement))
@@ -68,7 +67,7 @@ class LoadHudData(luigi.Task):
             index=False,
         )
         run_sql(
-            "CREATE INDEX idx_hud_income_limits_fips2010 on hud.income_limits USING btree (fips2010);"
+            "CREATE  UNIQUE INDEX idx_hud_income_limits_fips2010 on hud.income_limits USING btree (fips2010);"
         )
         run_sql(
             "CREATE INDEX idx_hud_income_limits_state on hud.income_limits USING btree (state);"
@@ -76,7 +75,6 @@ class LoadHudData(luigi.Task):
         run_sql(
             "CREATE INDEX idx_hud_income_limits_cntyidfp on hud.income_limits USING btree (cntyidfp);"
         )
-
 
     def run(self) -> None:
         self._extract()
