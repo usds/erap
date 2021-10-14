@@ -21,8 +21,13 @@ in pkgs.mkShell {
   buildInputs = [
     pkgs.python3
     pkgs.poetry
+    pkgs.python39Packages.pandas
+    pkgs.python39Packages.geopandas
+    pkgs.python39Packages.openpyxl
+
     sources.poetry2nix
     pkgs.stdenv.cc.cc.lib
+    pkgs.glibc
 
     pkgs.mypy
     pkgs.pgcli
@@ -34,4 +39,5 @@ in pkgs.mkShell {
     # keep this line if you use bash
     pkgs.bashInteractive
   ];
+  system = builtins.currentSystem;
 }

@@ -5,10 +5,10 @@
         "homepage": "https://github.com/nmattia/niv",
         "owner": "nmattia",
         "repo": "niv",
-        "rev": "af958e8057f345ee1aca714c1247ef3ba1c15f5e",
-        "sha256": "1qjavxabbrsh73yck5dcq8jggvh3r2jkbr6b5nlz5d9yrqm9255n",
+        "rev": "65a61b147f307d24bfd0a5cd56ce7d7b7cc61d2e",
+        "sha256": "17mirpsx5wyw262fpsd6n6m47jcgw8k2bwcp1iwdnrlzy4dhcgqh",
         "type": "tarball",
-        "url": "https://github.com/nmattia/niv/archive/af958e8057f345ee1aca714c1247ef3ba1c15f5e.tar.gz",
+        "url": "https://github.com/nmattia/niv/archive/65a61b147f307d24bfd0a5cd56ce7d7b7cc61d2e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
@@ -17,10 +17,10 @@
         "homepage": "",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "46ff1961227eb9ff16875b48f4e3562497d0f0e7",
-        "sha256": "035nk778lx2dpx1spy8k8blan2768kd1px6znvxql096l5jsmqfc",
+        "rev": "ee084c02040e864eeeb4cf4f8538d92f7c675671",
+        "sha256": "1x8amcixdaw3ryyia32pb706vzhvn5whq9n8jin0qcha5qnm1fnh",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs/archive/46ff1961227eb9ff16875b48f4e3562497d0f0e7.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/ee084c02040e864eeeb4cf4f8538d92f7c675671.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "poetry2nix": {
@@ -29,10 +29,10 @@
         "homepage": "",
         "owner": "nix-community",
         "repo": "poetry2nix",
-        "rev": "f0dde911f6e9aaf4fc72258d2c5645d9ff552bd0",
-        "sha256": "0ly6gay8jvffl4h6l80dqmwi2vk2ac1zkvg5jjwr1vpgmiyfq3hz",
+        "rev": "705cbfa10e3d9bfed2e59e0256844ae3704dbd7e",
+        "sha256": "0hqdgkk22amvjw086m0lh7cd643y7547zcccix4xqcrsrnvmx2c5",
         "type": "tarball",
-        "url": "https://github.com/nix-community/poetry2nix/archive/f0dde911f6e9aaf4fc72258d2c5645d9ff552bd0.tar.gz",
+        "url": "https://github.com/nix-community/poetry2nix/archive/705cbfa10e3d9bfed2e59e0256844ae3704dbd7e.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }
