@@ -4,10 +4,11 @@ import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
+from functools import cached_property
 from arp_pipeline.config import get_db_connection_string
 from arp_pipeline.hud import LoadHudData
 from arp_pipeline.models import metadata
-from arp_pipeline.models.address_income import address_hud_income_limit, address_tract
+from arp_pipeline.models.address_income import get_address_hud_income_limit_for_state,  get_address_tract_for_state
 from arp_pipeline.models.fips2010_lookup import fips2010_geo_lookups
 from arp_pipeline.nad import LoadNADData
 
@@ -77,6 +78,7 @@ class CreateHUDFIPSLookups(luigi.Task):
                     where income_limits.cntyidfp is null;
                 """
                 )
+                self.output().touch()
 
 
 class CreateHUDAddressLookups(luigi.Task):
@@ -93,8 +95,12 @@ class CreateHUDAddressLookups(luigi.Task):
         yield LoadHudData(fiscal_year=self.fiscal_year)
         yield LoadNADData(version=self.nad_version)
 
+    @cached_property
+    def table(self):
+        return get_address_hud_income_limit_for_state(self.state_usps)
+
     def output(self) -> SQLAlchemyTarget:
-        target_table = "lookups.address_hud_income_limit"
+        target_table = f"{self.table.schema}_{self.table.name}"
         return SQLAlchemyTarget(
             connection_string=DB_CONN,
             target_table=target_table,
@@ -105,18 +111,19 @@ class CreateHUDAddressLookups(luigi.Task):
         with self.output().engine.connect() as conn:
             run_sql = lambda statement: conn.execute(text(statement))
             with conn.begin():
-                run_sql("CREATE SCHEMA IF NOT EXISTS lookups;")
+                run_sql(f"CREATE SCHEMA IF NOT EXISTS {self.table.schema};")
             metadata.reflect(bind=self.output().engine, schema="addresses")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 metadata.reflect(bind=self.output().engine, schema="tiger")
                 metadata.reflect(bind=self.output().engine, schema="hud")
-            address_hud_income_limit.drop(self.output().engine, checkfirst=True)
-            address_hud_income_limit.create(self.output().engine)
+            self.table.drop(self.output().engine, checkfirst=True)
+            self.table.create(self.output().engine)
+
             with conn.begin():
                 run_sql(
                     f"""
-                    insert into lookups.address_hud_income_limit(
+                    insert into {self.table.schema}.{self.table.name}(
                             address_objectid,
                             fips2010,
                             the_geom
@@ -130,19 +137,24 @@ class CreateHUDAddressLookups(luigi.Task):
                     where addresses.nad.state = '{self.state_usps}';
                 """
                 )
+                self.output().touch()
 
 
 class CreateTractLookups(luigi.Task):
     nad_version: int = luigi.IntParameter(default=7)
     state_usps: str = luigi.Parameter(default="OH")
 
-    def requires(self):
-        # NOTE: This should depend on LoadStateTracts but figuring
-        # out which year to ask for is complicated, so I'm punting that
-        yield LoadNADData(version=self.nad_version)
+    # def requires(self):
+    #     # NOTE: This should depend on LoadStateTracts but figuring
+    #     # out which year to ask for is complicated, so I'm punting that
+    #     yield LoadNADData(version=self.nad_version)
+
+    @cached_property
+    def table(self):
+        return get_address_tract_for_state(self.state_usps)
 
     def output(self) -> SQLAlchemyTarget:
-        target_table = "lookups.address_tract"
+        target_table = f"{self.table.schema}.{self.table.name}"
         return SQLAlchemyTarget(
             connection_string=DB_CONN,
             target_table=target_table,
@@ -153,18 +165,18 @@ class CreateTractLookups(luigi.Task):
         with self.output().engine.connect() as conn:
             run_sql = lambda statement: conn.execute(text(statement))
             with conn.begin():
-                run_sql("CREATE SCHEMA IF NOT EXISTS lookups;")
+                run_sql(f"CREATE SCHEMA IF NOT EXISTS {self.table.schema};")
             metadata.reflect(bind=self.output().engine, schema="addresses")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 metadata.reflect(bind=self.output().engine, schema="tiger")
                 metadata.reflect(bind=self.output().engine, schema="hud")
-            address_tract.drop(self.output().engine, checkfirst=True)
-            address_tract.create(self.output().engine)
+            self.table.drop(self.output().engine, checkfirst=True)
+            self.table.create(self.output().engine)
             with conn.begin():
                 run_sql(
                     f"""
-                insert into lookups.address_tract(
+                insert into {self.table.schema}.{self.table.name}(
                     address_objectid,
                     tract_id,
                     the_geom
@@ -179,3 +191,4 @@ class CreateTractLookups(luigi.Task):
                 where addresses.nad.state = '{self.state_usps}';
                 """
                 )
+                self.output().touch()
