@@ -38,8 +38,10 @@ class DownloadHUDIncomeLimits(luigi.Task):
 
 
 class DownloadHUDFMRGeos(luigi.Task):
-    """The income limits data is keyed to HUD Fair Market Rents, which are officially hoste on
-    arcgis's open data platform
+    """The income limits data is keyed to HUD Fair Market Rents, which are officially hosted on
+    arcgis's open data platform:
+
+    https://hudgis-hud.opendata.arcgis.com/datasets/HUD::fair-market-rents/about
     """
 
     def output(self) -> luigi.LocalTarget:
@@ -156,9 +158,10 @@ class LoadHUDFMRGeos(luigi.Task):
             run_sql = lambda statement: conn.execute(text(statement))
             with conn.begin():
                 run_sql("CREATE SCHEMA IF NOT EXISTS hud;")
+                run_sql(f"DROP TABLE IF EXISTS hud.{self.table_name} CASCADE;")
             cmd_chain.with_cwd(dbf_file_dir)()
             with conn.begin():
                 run_sql(f"ALTER TABLE {self.target_table} ALTER COLUMN the_geom TYPE geometry(MultiPolygon, 4269) USING ST_SetSRID(the_geom, 4269);")
                 run_sql(f"CREATE INDEX hud_{self.table_name}_the_geom_gist ON {self.target_table} USING gist(the_geom);")
                 run_sql(f"CREATE INDEX idx_{self.table_name}_fmr_code ON {self.target_table} USING btree (fmr_code);")
-#                self.output().touch()
+                self.output().touch()

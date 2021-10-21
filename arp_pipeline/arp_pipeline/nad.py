@@ -56,10 +56,9 @@ class LoadNADData(luigi.Task):
         return UnzipNADData(version=self.version)
 
     def output(self) -> SQLAlchemyTarget:
-        target_table = "addresses.nad"
         return SQLAlchemyTarget(
             connection_string=DB_CONN,
-            target_table=target_table,
+            target_table="addresses.nad",
             update_id=f"create_{self.version}_nad",
         )
 
@@ -97,8 +96,6 @@ class LoadNADData(luigi.Task):
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses_staging CASCADE;")
                 run_sql("CREATE SCHEMA addresses_staging;")
-                run_sql("DROP SCHEMA IF EXISTS addresses CASCADE;")
-                run_sql("CREATE SCHEMA addresses;")
             print(ogr2ogr_cmd())
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses CASCADE;")
@@ -108,3 +105,4 @@ class LoadNADData(luigi.Task):
                 run_sql(
                     "CREATE INDEX idx_nad_address_state on addresses.nad USING btree (state);"
                 )
+                self.output().touch()
