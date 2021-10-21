@@ -8,6 +8,7 @@ import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection, Engine
+from geoalchemy2 import Geometry  # noqa
 
 from arp_pipeline.config import get_db_connection_string
 from arp_pipeline.download_utils import download_zip
@@ -634,14 +635,14 @@ class LoadStateFeatures(luigi.WrapperTask):
     resources = {"max_workers": 1}
 
     def requires(self):
-        yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
-        yield LoadFaces(year=self.year, state_usps=self.state_usps)
+#        yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
+#        yield LoadFaces(year=self.year, state_usps=self.state_usps)
         yield LoadStateCountySubdivisions(year=self.year, state_usps=self.state_usps)
         yield LoadStateTracts(year=self.year, state_usps=self.state_usps)
-        yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
+#        yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
         if self.year > 2019:
             yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
-        yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
+#        yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
         yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
         yield LoadEdges(year=self.year, state_usps=self.state_usps)
         yield LoadAddr(year=self.year, state_usps=self.state_usps)

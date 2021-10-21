@@ -61,13 +61,14 @@ def get_shp2pgsql_cmd(
     dbf_file_name: str,
     table_name: str,
     mode: Shp2PGSqlMode = Shp2PGSqlMode.CREATE,
+    srid: str = "4269",
 ) -> Pipeline:
     psql_cmd = psql[db_conn]
     shp2pgsql_cmd = shp2pgsql[
         "-D",
         mode.value,
         "-s",
-        "4269",
+        srid,
         "-g",
         "the_geom",
         "-W",
