@@ -12,7 +12,6 @@ from arp_pipeline.data_utils import clean_frame
 from arp_pipeline.download_utils import download_file, download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd
 
-
 DB_CONN = get_db_connection_string()
 CWD = os.path.abspath(os.getcwd())
 
@@ -46,16 +45,15 @@ class DownloadHUDFMRGeos(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                CWD,
-                "data/hud/fmr/Fair_Market_Rents.zip"
-            ),
+            os.path.join(CWD, "data/hud/fmr/Fair_Market_Rents.zip"),
             format=luigi.format.Nop,
         )
 
     def run(self) -> None:
-        url = ("https://opendata.arcgis.com/api/v3/datasets/"
-               "12d2516901f947b5bb4da4e780e35f07_0/downloads/data?format=shp&spatialRefId=4326")
+        url = (
+            "https://opendata.arcgis.com/api/v3/datasets/"
+            "12d2516901f947b5bb4da4e780e35f07_0/downloads/data?format=shp&spatialRefId=4326"
+        )
         with self.output().open("wb") as f:
             f.write(download_zip(url))
 
@@ -66,10 +64,7 @@ class UnzipHUDFMRGeos(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                CWD,
-                "data/hud/fmr/Fair_Market_Rents.dbf"
-            )
+            os.path.join(CWD, "data/hud/fmr/Fair_Market_Rents.dbf")
         )
 
     def run(self) -> None:
@@ -77,7 +72,6 @@ class UnzipHUDFMRGeos(luigi.Task):
         with ZipFile(zip_path) as fmr_zip:
             os.chdir(os.path.dirname(zip_path))
             fmr_zip.extractall()
-
 
 
 class LoadHUDData(luigi.Task):
@@ -137,7 +131,7 @@ class LoadHUDFMRGeos(luigi.Task):
 
     @property
     def table_name(self) -> str:
-        return self.target_table.split('.')[-1]
+        return self.target_table.split(".")[-1]
 
     def requires(self) -> UnzipHUDFMRGeos:
         return UnzipHUDFMRGeos()
@@ -153,7 +147,9 @@ class LoadHUDFMRGeos(luigi.Task):
         dbf_file_path = os.path.abspath(self.input().path)
         dbf_file_dir = os.path.dirname(dbf_file_path)
 
-        cmd_chain = get_shp2pgsql_cmd(DB_CONN, dbf_file_path, self.target_table, srid='4326')
+        cmd_chain = get_shp2pgsql_cmd(
+            DB_CONN, dbf_file_path, self.target_table, srid="4326"
+        )
         with self.output().engine.connect() as conn:
             run_sql = lambda statement: conn.execute(text(statement))
             with conn.begin():
@@ -161,7 +157,13 @@ class LoadHUDFMRGeos(luigi.Task):
                 run_sql(f"DROP TABLE IF EXISTS hud.{self.table_name} CASCADE;")
             cmd_chain.with_cwd(dbf_file_dir)()
             with conn.begin():
-                run_sql(f"ALTER TABLE {self.target_table} ALTER COLUMN the_geom TYPE geometry(MultiPolygon, 4269) USING ST_SetSRID(the_geom, 4269);")
-                run_sql(f"CREATE INDEX hud_{self.table_name}_the_geom_gist ON {self.target_table} USING gist(the_geom);")
-                run_sql(f"CREATE INDEX idx_{self.table_name}_fmr_code ON {self.target_table} USING btree (fmr_code);")
+                run_sql(
+                    f"ALTER TABLE {self.target_table} ALTER COLUMN the_geom TYPE geometry(MultiPolygon, 4269) USING ST_SetSRID(the_geom, 4269);"
+                )
+                run_sql(
+                    f"CREATE INDEX hud_{self.table_name}_the_geom_gist ON {self.target_table} USING gist(the_geom);"
+                )
+                run_sql(
+                    f"CREATE INDEX idx_{self.table_name}_fmr_code ON {self.target_table} USING btree (fmr_code);"
+                )
                 self.output().touch()

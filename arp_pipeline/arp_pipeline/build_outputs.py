@@ -1,17 +1,19 @@
 """Generate lookup tables for addresses and geographies."""
 import os
 import warnings
-from arp_pipeline.models.output import get_address_income_fact_for_state
 from functools import cached_property
+
 import luigi
+import pandas as pd
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
-import pandas as pd
-from arp_pipeline.build_lookups import CreateTractLookups, CreateHUDAddressLookups
+
+from arp_pipeline.build_lookups import CreateHUDAddressLookups, CreateTractLookups
 from arp_pipeline.census import LoadTractLevelACSData
 from arp_pipeline.config import get_db_connection_string
-from arp_pipeline.models import metadata
 from arp_pipeline.hud import LoadHUDData
+from arp_pipeline.models import metadata
+from arp_pipeline.models.output import get_address_income_fact_for_state
 
 DB_CONN = get_db_connection_string()
 CWD = os.path.abspath(os.getcwd())
@@ -136,7 +138,7 @@ class CreateAddressIncomeParquet(luigi.Task):
         return luigi.LocalTarget(
             os.path.join(
                 CWD,
-                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.parquet"
+                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.parquet",
             ),
             format=luigi.format.Nop,
         )
@@ -159,7 +161,7 @@ class CreateAddressIncomeCSV(luigi.Task):
         return luigi.LocalTarget(
             os.path.join(
                 CWD,
-                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv"
+                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv",
             ),
             format=luigi.format.Nop,
         )

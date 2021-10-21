@@ -1,14 +1,17 @@
 import warnings
+from functools import cached_property
 
 import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from functools import cached_property
 from arp_pipeline.config import get_db_connection_string
 from arp_pipeline.hud import LoadHUDData, LoadHUDFMRGeos
 from arp_pipeline.models import metadata
-from arp_pipeline.models.address_income import get_address_hud_income_limit_for_state,  get_address_tract_for_state
+from arp_pipeline.models.address_income import (
+    get_address_hud_income_limit_for_state,
+    get_address_tract_for_state,
+)
 from arp_pipeline.models.hud_fmr_lookup import hud_fmr_geo_lookup
 from arp_pipeline.nad import LoadNADData
 

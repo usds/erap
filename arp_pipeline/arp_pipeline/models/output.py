@@ -1,5 +1,6 @@
 """Final output tables that are then shared in a variety of formats."""
-from sqlalchemy import Column, Table, Integer, String, Float, ForeignKey, Boolean
+from sqlalchemy import Boolean, Column, Float, Integer, String, Table
+
 from arp_pipeline.models import metadata
 
 
@@ -107,5 +108,5 @@ def get_address_income_fact_for_state(state_usps: str) -> Table:
             "latitude",
             Float(precision=53),
         ),
-    schema="output",
+        schema="output",
     )
