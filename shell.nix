@@ -33,6 +33,7 @@ in pkgs.mkShell {
     pkgs.pgcli
     pkgs.gdal_2
     pkgs.pg_top
+    pkgs.tokei
     #gisEnv
     (pkgs.postgresql_13.withPackages (p: [ p.postgis ]) )
 
