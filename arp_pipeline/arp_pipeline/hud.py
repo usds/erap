@@ -7,13 +7,12 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import get_db_connection_string, get_storage_path
 from arp_pipeline.data_utils import clean_frame
 from arp_pipeline.download_utils import download_file, download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd
 
 DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
 
 
 class DownloadHUDIncomeLimits(luigi.Task):
@@ -24,8 +23,8 @@ class DownloadHUDIncomeLimits(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             os.path.join(
-                CWD,
-                f"data/hud/il/il{self.fiscal_year}/Section8-{self.fiscal_year}.xlsx",
+                get_storage_path(),
+                f"hud/il/il{self.fiscal_year}/Section8-{self.fiscal_year}.xlsx",
             ),
             format=luigi.format.Nop,
         )
@@ -45,7 +44,7 @@ class DownloadHUDFMRGeos(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, "data/hud/fmr/Fair_Market_Rents.zip"),
+            os.path.join(get_storage_path(), "hud/fmr/Fair_Market_Rents.zip"),
             format=luigi.format.Nop,
         )
 
@@ -64,7 +63,7 @@ class UnzipHUDFMRGeos(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, "data/hud/fmr/Fair_Market_Rents.dbf")
+            os.path.join(get_storage_path(), "hud/fmr/Fair_Market_Rents.dbf")
         )
 
     def run(self) -> None:

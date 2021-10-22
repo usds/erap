@@ -6,11 +6,10 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from plumbum.cmd import ogr2ogr
 from sqlalchemy import text
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import get_db_connection_string, get_storage_path
 from arp_pipeline.download_utils import download_zip
 
 DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
 
 
 class DownloadNADZip(luigi.Task):
@@ -20,7 +19,7 @@ class DownloadNADZip(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, f"data/nad/{self.version}/NAD_r{self.version}.zip"),
+            os.path.join(get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.zip"),
             format=luigi.format.Nop,
         )
 
@@ -38,7 +37,7 @@ class UnzipNADData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, f"data/nad/{self.version}/NAD_r{self.version}.gdb"),
+            os.path.join(get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.gdb"),
             format=luigi.format.Nop,
         )
 

@@ -11,13 +11,18 @@ CONFIG = {
 }
 
 
-def get_db_connection_string(db_year: Optional[str] = None) -> str:
+def get_db_connection_string() -> str:
     assert "DB_CONN" in CONFIG and CONFIG["DB_CONN"] is not None
-    db_conn = CONFIG["DB_CONN"]
-    if db_year is not None:
-        db_conn = "_".join([db_conn, db_year])
-    return db_conn
+    return CONFIG["DB_CONN"]
 
 
 class ACSVariable(str, Enum):
     MEDIAN_RENTER_INCOME = "B25119_003E"
+
+
+def get_storage_path() -> str:
+    if "STORAGE_PATH" in CONFIG:
+        storage_path = CONFIG["STORAGE_PATH"]
+    else:
+        storage_path = os.getcwd()
+    return os.path.abspath(storage_path)

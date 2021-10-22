@@ -10,13 +10,12 @@ from sqlalchemy import text
 
 from arp_pipeline.build_lookups import CreateHUDAddressLookups, CreateTractLookups
 from arp_pipeline.census import LoadTractLevelACSData
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import get_db_connection_string, get_storage_path
 from arp_pipeline.hud import LoadHUDData
 from arp_pipeline.models import metadata
 from arp_pipeline.models.output import get_address_income_fact_for_state
 
 DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
 
 
 class CreateAddressIncomeFact(luigi.Task):
@@ -137,8 +136,8 @@ class CreateAddressIncomeParquet(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             os.path.join(
-                CWD,
-                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.parquet",
+                get_storage_path(),
+                f"output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.parquet",
             ),
             format=luigi.format.Nop,
         )
@@ -160,8 +159,8 @@ class CreateAddressIncomeCSV(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             os.path.join(
-                CWD,
-                f"data/output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv",
+                get_storage_path(),
+                f"output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv",
             ),
             format=luigi.format.Nop,
         )

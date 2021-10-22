@@ -10,7 +10,7 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection, Engine
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import get_db_connection_string, get_storage_path
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_national import LoadCountyData, LoadNationalData
 from arp_pipeline.tiger_utils import (
@@ -21,7 +21,6 @@ from arp_pipeline.tiger_utils import (
 )
 
 DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
 
 
 class DownloadStateLevelLocalData(luigi.Task):
@@ -41,8 +40,8 @@ class DownloadStateLevelLocalData(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             os.path.join(
-                CWD,
-                f"data/tiger/{self.year}/state/{self.state_code}/{self.feature_name}/{self.file_name}",
+                get_storage_path(),
+                f"tiger/{self.year}/state/{self.state_code}/{self.feature_name}/{self.file_name}",
             ),
             format=luigi.format.Nop,
         )
@@ -77,9 +76,9 @@ class UnzipStateLevelTigerData(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             os.path.join(
-                CWD,
+                get_storage_path(),
                 (
-                    f"data/tiger/{self.year}/state/{self.state_code}/{self.feature_name}/"
+                    f"tiger/{self.year}/state/{self.state_code}/{self.feature_name}/"
                     f"tl_{self.year}_{self.state_code}{self.county_code}_{self.feature_name.lower()}.dbf"
                 ),
             ),
