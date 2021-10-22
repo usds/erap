@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import luigi
 from geoalchemy2 import Geometry  # noqa
 from luigi.contrib.sqla import SQLAlchemyTarget
-from sqlalchemy import inspect, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Connection, Engine
 
 from arp_pipeline.config import get_db_connection_string, get_storage_path
@@ -15,6 +15,7 @@ from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_national import LoadCountyData, LoadNationalData
 from arp_pipeline.tiger_utils import (
     Shp2PGSqlMode,
+    create_indexes_and_vacuum,
     get_shp2pgsql_cmd,
     run_raw_sql,
     staging_schema,
@@ -24,7 +25,7 @@ DB_CONN = get_db_connection_string()
 
 
 class DownloadStateLevelLocalData(luigi.Task):
-    year: int = luigi.IntParameter(default=2020)
+    year: int = luigi.IntParameter(default=2019)
     state_code: str = luigi.Parameter()
     county_code: str = luigi.Parameter(default="")
     feature_name: str = luigi.Parameter()
@@ -60,7 +61,7 @@ class DownloadStateLevelLocalData(luigi.Task):
 
 
 class UnzipStateLevelTigerData(luigi.Task):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=2019)
     state_code = luigi.Parameter()
     county_code: str = luigi.Parameter(default="")
     feature_name = luigi.Parameter()
@@ -93,7 +94,7 @@ class UnzipStateLevelTigerData(luigi.Task):
 
 
 class LoadStateFeature(ABC):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=2019)
     state_usps = luigi.Parameter()
     resources = {"max_workers": 1}
 
@@ -629,26 +630,43 @@ class LoadAddr(LoadCountyFeature, luigi.Task):
 
 
 class LoadStateFeatures(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=2019)
     state_usps = luigi.Parameter()
     resources = {"max_workers": 1}
+    load_tab_blocks = luigi.BoolParameter(default=False)
+    load_block_groups = luigi.BoolParameter(default=False)
+    load_place_features = luigi.BoolParameter(default=False)
+    load_faces = luigi.BoolParameter(default=False)
+    load_all = luigi.BoolParameter(default=False)
 
     def requires(self):
-        #        yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
-        #        yield LoadFaces(year=self.year, state_usps=self.state_usps)
         yield LoadStateCountySubdivisions(year=self.year, state_usps=self.state_usps)
         yield LoadStateTracts(year=self.year, state_usps=self.state_usps)
-        #        yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
-        if self.year > 2019:
-            yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
-        #        yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
         yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
         yield LoadEdges(year=self.year, state_usps=self.state_usps)
         yield LoadAddr(year=self.year, state_usps=self.state_usps)
 
+        if self.load_place_features or self.load_all:
+            yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
+        if self.load_faces or self.load_all:
+            yield LoadFaces(year=self.year, state_usps=self.state_usps)
+        if self.load_tab_blocks or self.load_all:
+            yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
+            if self.year > 2019:
+                yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
+        if self.load_block_groups or self.load_all:
+            yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
 
-class LoadAllStateFeatures(luigi.WrapperTask):
+
+class LoadAllStateFeatures(luigi.Task):
+    task_complete = False
     year = luigi.IntParameter(default=2019)
+    load_tab_blocks = luigi.BoolParameter(default=False)
+    load_block_groups = luigi.BoolParameter(default=False)
+    load_place_features = luigi.BoolParameter(default=False)
+    load_faces = luigi.BoolParameter(default=False)
+    load_all = luigi.BoolParameter(default=False)
+
     STATE_USPSES = [
         "WV",
         "FL",
@@ -706,4 +724,20 @@ class LoadAllStateFeatures(luigi.WrapperTask):
     def requires(self):
         yield LoadNationalData(year=self.year)
         for state_usps in self.STATE_USPSES:
-            yield LoadStateFeatures(year=self.year, state_usps=state_usps)
+            yield LoadStateFeatures(
+                year=self.year,
+                state_usps=state_usps,
+                load_tab_blocks=self.load_tab_blocks,
+                load_block_groups=self.load_block_groups,
+                load_place_features=self.load_place_features,
+                load_faces=self.load_faces,
+                load_all=self.load_all,
+            )
+
+    def run(self):
+        engine = create_engine(DB_CONN)
+        create_indexes_and_vacuum(engine)
+        self.task_complete = True
+
+    def complete(self):
+        return self.task_complete
