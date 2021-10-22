@@ -1,0 +1,10 @@
+services: 
+  api:
+    build: ./api
+    ports: ["5000:80"]
+  api_database:
+    image: postgres
+    env_file: [".env"]
+  arp_pipeline:
+    build: ./arp_pipeline
+    

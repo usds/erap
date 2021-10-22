@@ -10,6 +10,12 @@ _build
 .cache
 *.so
 
+# API Code 
+
+api/obj
+api/bin
+api/.paket
+
 # Installer logs
 pip-log.txt
 
