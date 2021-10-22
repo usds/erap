@@ -70,6 +70,8 @@ class CreateAddressIncomeFact(luigi.Task):
                         post_comm,
                         zip_code,
                         plus_4,
+                        bulk_zip,
+                        bulk_plus4,
                         stn_premod,
                         stn_predir,
                         stn_pretyp,
@@ -82,6 +84,7 @@ class CreateAddressIncomeFact(luigi.Task):
                         add_number,
                         addnum_suf,
                         unit,
+                        floor,
                         longitude,
                         latitude
                     )
@@ -101,6 +104,8 @@ class CreateAddressIncomeFact(luigi.Task):
                         nad.post_comm,
                         nad.zip_code,
                         nad.plus_4,
+                        nad.bulk_zip,
+                        nad.bulk_plus4,
                         nad.stn_premod,
                         nad.stn_predir,
                         nad.stn_pretyp,
@@ -113,6 +118,7 @@ class CreateAddressIncomeFact(luigi.Task):
                         nad.add_number,
                         nad.addnum_suf,
                         nad.unit,
+                        nad.floor,
                         nad.longitude,
                         nad.latitude
 

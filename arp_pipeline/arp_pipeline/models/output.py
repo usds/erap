@@ -53,6 +53,14 @@ def get_address_income_fact_for_state(state_usps: str) -> Table:
             String(length=7),
         ),
         Column(
+            "bulk_zip",
+            String(length=7),
+        ),
+        Column(
+            "bulk_plus4",
+            String(length=7),
+        ),
+        Column(
             "stn_premod",
             String(length=15),
         ),
@@ -98,6 +106,10 @@ def get_address_income_fact_for_state(state_usps: str) -> Table:
         ),
         Column(
             "unit",
+            String(length=75),
+        ),
+        Column(
+            "floor",
             String(length=75),
         ),
         Column(
