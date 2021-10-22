@@ -19,7 +19,9 @@ class DownloadNADZip(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.zip"),
+            os.path.join(
+                get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.zip"
+            ),
             format=luigi.format.Nop,
         )
 
@@ -37,7 +39,9 @@ class UnzipNADData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.gdb"),
+            os.path.join(
+                get_storage_path(), f"nad/{self.version}/NAD_r{self.version}.gdb"
+            ),
             format=luigi.format.Nop,
         )
 

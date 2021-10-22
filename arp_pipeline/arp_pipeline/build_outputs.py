@@ -1,11 +1,14 @@
 """Generate lookup tables for addresses and geographies."""
 import os
+import shutil
+import tempfile
 import warnings
 from functools import cached_property
 
 import luigi
 import pandas as pd
 from luigi.contrib.sqla import SQLAlchemyTarget
+from plumbum.cmd import pg_dump
 from sqlalchemy import text
 
 from arp_pipeline.build_lookups import CreateHUDAddressLookups, CreateTractLookups
@@ -154,6 +157,42 @@ class CreateAddressIncomeParquet(luigi.Task):
             frame = pd.read_sql(query, conn)
             with self.output().open("wb") as f:
                 frame.to_parquet(f, index=False)
+
+
+class CreateAddressIncomePGDump(luigi.Task):
+    state_usps: str = luigi.Parameter(default="OH")
+
+    @property
+    def output_path(self) -> str:
+        return os.path.join(
+            get_storage_path(),
+            f"output/2019/{self.state_usps}/address-income-{self.state_usps.lower()}.sql",
+        )
+
+    def requires(self) -> CreateAddressIncomeFact:
+        return CreateAddressIncomeFact(state_usps=self.state_usps)
+
+    def output(self) -> luigi.LocalTarget:
+        return luigi.LocalTarget(
+            self.output_path,
+            format=luigi.format.Nop,
+        )
+
+    def run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_out_path = os.path.join(
+                tmpdirname, f"adress-income-{self.state_usps.lower()}.sql"
+            )
+            pg_dump_cmd = pg_dump[
+                "-Fc",
+                "-f",
+                tmp_out_path,
+                "--table",
+                self.input().target_table,
+                DB_CONN,
+            ]
+            pg_dump_cmd()
+            shutil.move(tmp_out_path, self.output_path)
 
 
 class CreateAddressIncomeCSV(luigi.Task):
