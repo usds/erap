@@ -213,3 +213,12 @@ class CreateAddressIncomeCSV(luigi.Task):
             frame = pd.read_parquet(f)
         with self.output().open("wb") as f:
             frame.to_csv(f, index=False)
+
+
+class CreateAllOutputForState(luigi.WrapperTask):
+    state_usps: str = luigi.Parameter()
+
+    def requires(self):
+        yield CreateAddressIncomeParquet(state_usps=self.state_usps)
+        yield CreateAddressIncomePGDump(state_usps=self.state_usps)
+        yield CreateAddressIncomeCSV(state_usps=self.state_usps)
