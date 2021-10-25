@@ -16,9 +16,35 @@ from arp_pipeline.census import LoadTractLevelACSData
 from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, get_output_path
 from arp_pipeline.hud import LoadHUDData
 from arp_pipeline.models import metadata
-from arp_pipeline.models.output import get_address_income_fact_for_state
+from arp_pipeline.models.output import get_address_income_fact_for_state, base_income_fact_table
 
 DB_CONN = CONFIG["DB_CONN"]
+
+
+class CreateBaseIncomeFactTable(luigi.Task):
+    priority = 90
+
+    @property
+    def table(self):
+        return base_income_fact_table
+
+    def output(self) -> SQLAlchemyTarget:
+        return SQLAlchemyTarget(
+            connection_string=DB_CONN,
+            target_table=f"{self.table.schema}.{self.table.name}",
+            update_id="create_base_address_income_table",
+        )
+
+    def run(self):
+        db_name = self.output().connection_string.split('/')[-1]
+        with self.output().engine.connect() as conn:
+            run_sql = lambda statement: conn.execute(text(statement))
+            with conn.begin():
+                run_sql(f"CREATE SCHEMA IF NOT EXISTS {self.table.schema}")
+                run_sql(f"ALTER DATABASE {db_name} SET search_path TO \"$user\",public,tiger,output;")
+            self.table.create(self.output().engine, checkfirst=True)
+            with conn.begin():
+                self.output().touch()
 
 
 class CreateAddressIncomeFact(luigi.Task):
@@ -30,6 +56,7 @@ class CreateAddressIncomeFact(luigi.Task):
         yield CreateHUDAddressLookups(state_usps=self.state_usps)
         yield LoadTractLevelACSData(year=self.census_year)
         yield LoadHUDData()
+        yield CreateBaseIncomeFactTable()
 
     @cached_property
     def table(self):
@@ -49,10 +76,7 @@ class CreateAddressIncomeFact(luigi.Task):
                 run_sql(f"CREATE SCHEMA IF NOT EXISTS {self.table.schema}")
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                metadata.reflect(bind=self.output().engine, schema="tiger")
-                metadata.reflect(bind=self.output().engine, schema="hud")
-                metadata.reflect(bind=self.output().engine, schema="lookups")
-                metadata.reflect(bind=self.output().engine, schema="census")
+                metadata.reflect(bind=self.output().engine, schema="output")
 
             self.table.drop(self.output().engine, checkfirst=True)
             self.table.create(self.output().engine)

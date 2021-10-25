@@ -4,9 +4,8 @@ from sqlalchemy import Boolean, Column, Float, Integer, String, Table
 from arp_pipeline.models import metadata
 
 
-def get_address_income_fact_for_state(state_usps: str) -> Table:
-    return Table(
-        f"address_income_fact_{state_usps.lower()}",
+base_income_fact_table = Table(
+        "address_income_fact",
         metadata,
         Column("id", Integer, primary_key=True),
         Column("address_objectid", Integer, index=True),
@@ -120,5 +119,13 @@ def get_address_income_fact_for_state(state_usps: str) -> Table:
             "latitude",
             Float(precision=53),
         ),
+        schema="public",
+    )
+
+def get_address_income_fact_for_state(state_usps: str) -> Table:
+    return Table(
+        f"address_income_fact_{state_usps.lower()}",
+        metadata,
+        postgresql_inherits="address_income_fact",
         schema="output",
     )
