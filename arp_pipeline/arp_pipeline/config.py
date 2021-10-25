@@ -10,11 +10,6 @@ CONFIG = {
 }
 
 
-def get_db_connection_string() -> str:
-    assert "DB_CONN" in CONFIG and CONFIG["DB_CONN"] is not None
-    return CONFIG["DB_CONN"]
-
-
 class ACSVariable(str, Enum):
     MEDIAN_RENTER_INCOME = "B25119_003E"
 

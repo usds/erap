@@ -5,7 +5,7 @@ import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import DEFAULT_CENSUS_YEAR, get_db_connection_string
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR
 from arp_pipeline.hud import LoadHUDData, LoadHUDFMRGeos
 from arp_pipeline.models import metadata
 from arp_pipeline.models.address_income import (
@@ -17,7 +17,7 @@ from arp_pipeline.nad import LoadNADData
 from arp_pipeline.tiger_national import LoadNationalData
 from arp_pipeline.tiger_state import LoadStateFeatures
 
-DB_CONN = get_db_connection_string()
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class CreateHUDCBSALookups(luigi.Task):

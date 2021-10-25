@@ -7,12 +7,12 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from arp_pipeline.config import get_db_connection_string, get_storage_path
+from arp_pipeline.config import CONFIG, get_storage_path
 from arp_pipeline.data_utils import clean_frame
 from arp_pipeline.download_utils import download_file, download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd
 
-DB_CONN = get_db_connection_string()
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class DownloadHUDIncomeLimits(luigi.Task):

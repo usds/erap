@@ -10,11 +10,7 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Connection, Engine
 
-from arp_pipeline.config import (
-    DEFAULT_CENSUS_YEAR,
-    get_db_connection_string,
-    get_storage_path,
-)
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, get_storage_path
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_national import LoadCountyData, LoadNationalData
 from arp_pipeline.tiger_utils import (
@@ -25,7 +21,7 @@ from arp_pipeline.tiger_utils import (
     staging_schema,
 )
 
-DB_CONN = get_db_connection_string()
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class DownloadStateLevelLocalData(luigi.Task):

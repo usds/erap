@@ -8,15 +8,11 @@ from luigi.contrib.postgres import PostgresTarget
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import (
-    DEFAULT_CENSUS_YEAR,
-    get_db_connection_string,
-    get_storage_path,
-)
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, get_storage_path
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd, run_raw_sql, staging_schema
 
-DB_CONN = get_db_connection_string()
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class DataScope(str, Enum):

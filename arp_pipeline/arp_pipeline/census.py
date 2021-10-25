@@ -8,9 +8,9 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import String, text
 from sqlalchemy.engine import Connection
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import CONFIG
 
-DB_CONN = get_db_connection_string()
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class LoadTractLevelACSData(luigi.Task):
