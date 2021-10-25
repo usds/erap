@@ -25,3 +25,6 @@ def get_storage_path() -> str:
     else:
         storage_path = os.getcwd()
     return os.path.abspath(storage_path)
+
+
+DEFAULT_CENSUS_YEAR = int(CONFIG.get("DEFAULT_CENSUS_YEAR", 2019))

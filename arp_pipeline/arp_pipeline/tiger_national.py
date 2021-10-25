@@ -8,7 +8,11 @@ from luigi.contrib.postgres import PostgresTarget
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import get_db_connection_string, get_storage_path
+from arp_pipeline.config import (
+    DEFAULT_CENSUS_YEAR,
+    get_db_connection_string,
+    get_storage_path,
+)
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd, run_raw_sql, staging_schema
 
@@ -21,7 +25,7 @@ class DataScope(str, Enum):
 
 
 class DownloadTigerData(luigi.Task):
-    year: int = luigi.IntParameter(default=2019)
+    year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     feature_name: str = luigi.Parameter()
     data_scope: DataScope = luigi.EnumParameter(
         enum=DataScope, default=DataScope.NATIONAL
@@ -53,7 +57,7 @@ class DownloadTigerData(luigi.Task):
 
 
 class UnzipNationalTigerData(luigi.Task):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     feature_name = luigi.Parameter()
     data_scope: DataScope = luigi.EnumParameter(
         enum=DataScope, default=DataScope.NATIONAL
@@ -82,8 +86,9 @@ class UnzipNationalTigerData(luigi.Task):
 
 
 class LoadStateData(luigi.Task):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     resources = {"max_workers": 1}
+    priority = 100
 
     def requires(self) -> UnzipNationalTigerData:
         return UnzipNationalTigerData(year=self.year, feature_name="state")
@@ -131,8 +136,9 @@ class LoadStateData(luigi.Task):
 
 
 class LoadCountyData(luigi.Task):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     resources = {"max_workers": 1}
+    priority = 90
 
     def requires(self) -> UnzipNationalTigerData:
         return UnzipNationalTigerData(year=self.year, feature_name="county")
@@ -202,7 +208,7 @@ class LoadCountyData(luigi.Task):
 
 
 class LoadNationalData(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 
     def requires(self) -> Iterable[Union[LoadCountyData, LoadStateData]]:
         yield LoadStateData(year=self.year)

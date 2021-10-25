@@ -5,7 +5,7 @@ import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import DEFAULT_CENSUS_YEAR, get_db_connection_string
 from arp_pipeline.hud import LoadHUDData, LoadHUDFMRGeos
 from arp_pipeline.models import metadata
 from arp_pipeline.models.address_income import (
@@ -14,6 +14,8 @@ from arp_pipeline.models.address_income import (
 )
 from arp_pipeline.models.hud_fmr_lookup import hud_fmr_geo_lookup
 from arp_pipeline.nad import LoadNADData
+from arp_pipeline.tiger_national import LoadNationalData
+from arp_pipeline.tiger_state import LoadStateFeatures
 
 DB_CONN = get_db_connection_string()
 
@@ -122,11 +124,12 @@ class CreateHUDAddressLookups(luigi.Task):
 class CreateTractLookups(luigi.Task):
     nad_version: int = luigi.IntParameter(default=7)
     state_usps: str = luigi.Parameter(default="OH")
+    census_year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 
     def requires(self):
-        # NOTE: This should depend on LoadStateTracts but figuring
-        # out which year to ask for is complicated, so I'm punting that
         yield LoadNADData(version=self.nad_version)
+        yield LoadNationalData(year=self.census_year)
+        yield LoadStateFeatures(year=self.census_year, state_usps=self.state_usps)
 
     @cached_property
     def table(self):

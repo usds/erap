@@ -10,7 +10,11 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Connection, Engine
 
-from arp_pipeline.config import get_db_connection_string, get_storage_path
+from arp_pipeline.config import (
+    DEFAULT_CENSUS_YEAR,
+    get_db_connection_string,
+    get_storage_path,
+)
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_national import LoadCountyData, LoadNationalData
 from arp_pipeline.tiger_utils import (
@@ -25,7 +29,7 @@ DB_CONN = get_db_connection_string()
 
 
 class DownloadStateLevelLocalData(luigi.Task):
-    year: int = luigi.IntParameter(default=2019)
+    year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     state_code: str = luigi.Parameter()
     county_code: str = luigi.Parameter(default="")
     feature_name: str = luigi.Parameter()
@@ -61,7 +65,7 @@ class DownloadStateLevelLocalData(luigi.Task):
 
 
 class UnzipStateLevelTigerData(luigi.Task):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     state_code = luigi.Parameter()
     county_code: str = luigi.Parameter(default="")
     feature_name = luigi.Parameter()
@@ -94,7 +98,7 @@ class UnzipStateLevelTigerData(luigi.Task):
 
 
 class LoadStateFeature(ABC):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     state_usps = luigi.Parameter()
     resources = {"max_workers": 1}
 
@@ -118,7 +122,8 @@ class LoadStateFeature(ABC):
         return f"{self.state_usps}_{self.feature_name}".lower()
 
     def requires(self) -> LoadNationalData:
-        return LoadNationalData(year=self.year)
+        yield LoadNationalData(year=self.year)
+        yield LoadCountyData(year=self.year)
 
     def output(self) -> SQLAlchemyTarget:
         target_table = f"tiger_data.{self.table_name}"
@@ -630,7 +635,7 @@ class LoadAddr(LoadCountyFeature, luigi.Task):
 
 
 class LoadStateFeatures(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     state_usps = luigi.Parameter()
     resources = {"max_workers": 1}
     load_tab_blocks = luigi.BoolParameter(default=False)
@@ -652,7 +657,7 @@ class LoadStateFeatures(luigi.WrapperTask):
             yield LoadFaces(year=self.year, state_usps=self.state_usps)
         if self.load_tab_blocks or self.load_all:
             yield LoadTabBlocks10(year=self.year, state_usps=self.state_usps)
-            if self.year > 2019:
+            if self.year > DEFAULT_CENSUS_YEAR:
                 yield LoadTabBlocks20(year=self.year, state_usps=self.state_usps)
         if self.load_block_groups or self.load_all:
             yield LoadBlockGroups(year=self.year, state_usps=self.state_usps)
@@ -660,7 +665,7 @@ class LoadStateFeatures(luigi.WrapperTask):
 
 class LoadAllStateFeatures(luigi.Task):
     task_complete = False
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     load_tab_blocks = luigi.BoolParameter(default=False)
     load_block_groups = luigi.BoolParameter(default=False)
     load_place_features = luigi.BoolParameter(default=False)

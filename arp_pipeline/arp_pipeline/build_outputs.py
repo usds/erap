@@ -13,7 +13,11 @@ from sqlalchemy import text
 
 from arp_pipeline.build_lookups import CreateHUDAddressLookups, CreateTractLookups
 from arp_pipeline.census import LoadTractLevelACSData
-from arp_pipeline.config import get_db_connection_string, get_storage_path
+from arp_pipeline.config import (
+    DEFAULT_CENSUS_YEAR,
+    get_db_connection_string,
+    get_storage_path,
+)
 from arp_pipeline.hud import LoadHUDData
 from arp_pipeline.models import metadata
 from arp_pipeline.models.output import get_address_income_fact_for_state
@@ -23,11 +27,12 @@ DB_CONN = get_db_connection_string()
 
 class CreateAddressIncomeFact(luigi.Task):
     state_usps: str = luigi.Parameter(default="OH")
+    census_year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 
     def requires(self):
         yield CreateTractLookups(state_usps=self.state_usps)
         yield CreateHUDAddressLookups(state_usps=self.state_usps)
-        yield LoadTractLevelACSData()
+        yield LoadTractLevelACSData(year=self.census_year)
         yield LoadHUDData()
 
     @cached_property

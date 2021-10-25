@@ -54,11 +54,11 @@ class LoadTractLevelACSData(luigi.Task):
         self.data = pd.concat(state_data)
 
     def _transform(self) -> None:
-        NULL_SIGNAL = -666666666
+        NULL_SIGNALS = [-666666666, -333333333, -222222222]
         self.data["tract_id"] = self.data.index.to_series().apply(
             self._fips_from_censusdata_censusgeo
         )
-        self.data.replace(to_replace=NULL_SIGNAL, value=np.nan, inplace=True)
+        self.data.replace(to_replace=NULL_SIGNALS, value=np.nan, inplace=True)
         print("hello")
 
     def _load(self, connection: Connection) -> None:
