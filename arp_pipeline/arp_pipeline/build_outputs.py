@@ -203,7 +203,7 @@ class CreateAddressIncomeCSV(luigi.Task):
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
             get_output_path(
-                f"2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv",
+                f"2019/{self.state_usps}/address-income-{self.state_usps.lower()}.csv.zip",
             ),
             format=luigi.format.Nop,
         )
@@ -212,7 +212,7 @@ class CreateAddressIncomeCSV(luigi.Task):
         with self.input().open() as f:
             frame = pd.read_parquet(f)
         with self.output().open("wb") as f:
-            frame.to_csv(f, index=False)
+            frame.to_csv(f, index=False, compression='zip')
 
 
 class CreateAllOutputForState(luigi.WrapperTask):
