@@ -22,8 +22,7 @@ class DownloadHUDIncomeLimits(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                get_storage_path(),
+            get_storage_path(
                 f"hud/il/il{self.fiscal_year}/Section8-{self.fiscal_year}.xlsx",
             ),
             format=luigi.format.Nop,
@@ -44,7 +43,7 @@ class DownloadHUDFMRGeos(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(get_storage_path(), "hud/fmr/Fair_Market_Rents.zip"),
+            get_storage_path("hud/fmr/Fair_Market_Rents.zip"),
             format=luigi.format.Nop,
         )
 
@@ -62,9 +61,7 @@ class UnzipHUDFMRGeos(luigi.Task):
         return DownloadHUDFMRGeos()
 
     def output(self) -> luigi.LocalTarget:
-        return luigi.LocalTarget(
-            os.path.join(get_storage_path(), "hud/fmr/Fair_Market_Rents.dbf")
-        )
+        return luigi.LocalTarget(get_storage_path("hud/fmr/Fair_Market_Rents.dbf"))
 
     def run(self) -> None:
         zip_path = os.path.abspath(self.input().path)

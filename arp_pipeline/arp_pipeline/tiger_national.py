@@ -39,8 +39,7 @@ class DownloadTigerData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                get_storage_path(),
+            get_storage_path(
                 f"tiger/{self.year}/{self.data_scope}/{self.feature_name}/{self.file_name}",
             ),
             format=luigi.format.Nop,
@@ -64,12 +63,9 @@ class UnzipNationalTigerData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                get_storage_path(),
-                (
-                    f"tiger/{self.year}/{self.data_scope}/{self.feature_name.lower()}/"
-                    f"tl_{self.year}_us_{self.feature_name.lower()}.dbf"
-                ),
+            get_storage_path(
+                f"tiger/{self.year}/{self.data_scope}/{self.feature_name.lower()}/"
+                f"tl_{self.year}_us_{self.feature_name.lower()}.dbf"
             ),
             format=luigi.format.Nop,
         )

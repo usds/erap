@@ -40,8 +40,7 @@ class DownloadStateLevelLocalData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                get_storage_path(),
+            get_storage_path(
                 f"tiger/{self.year}/state/{self.state_code}/{self.feature_name}/{self.file_name}",
             ),
             format=luigi.format.Nop,
@@ -76,12 +75,9 @@ class UnzipStateLevelTigerData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                get_storage_path(),
-                (
-                    f"tiger/{self.year}/state/{self.state_code}/{self.feature_name}/"
-                    f"tl_{self.year}_{self.state_code}{self.county_code}_{self.feature_name.lower()}.dbf"
-                ),
+            get_storage_path(
+                f"tiger/{self.year}/state/{self.state_code}/{self.feature_name}/"
+                f"tl_{self.year}_{self.state_code}{self.county_code}_{self.feature_name.lower()}.dbf"
             ),
             format=luigi.format.Nop,
         )
