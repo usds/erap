@@ -27,4 +27,16 @@ def get_storage_path(storage_subdir: Optional[str] = None) -> str:
         return base_storage_path
 
 
+def get_output_path(output_subdir: Optional[str] = None) -> str:
+    if "OUTPUT_PATH" in CONFIG:
+        output_path = CONFIG["OUTPUT_PATH"]
+    else:
+        output_path = get_storage_path()
+    base_output_path = os.path.abspath(output_path)
+    if output_subdir is not None:
+        return os.path.join(base_output_path, output_subdir)
+    else:
+        return base_output_path
+
+
 DEFAULT_CENSUS_YEAR = int(CONFIG.get("DEFAULT_CENSUS_YEAR", 2019))
