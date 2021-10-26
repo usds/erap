@@ -26,7 +26,8 @@ def staging_schema(
         yield
     finally:
         with connection.begin():
-            run_sql("DROP SCHEMA IF EXISTS tiger_staging CASCADE;")
+            pass
+            # run_sql("DROP SCHEMA IF EXISTS tiger_staging CASCADE;")
 
 
 def run_raw_sql(engine: Engine, statement: str) -> None:

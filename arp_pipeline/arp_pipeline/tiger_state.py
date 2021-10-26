@@ -626,6 +626,30 @@ class LoadAddr(LoadCountyFeature, luigi.Task):
             )
 
 
+class LoadAddrFeat(LoadCountyFeature, luigi.Task):
+    feature_name = "addrfeat"
+
+    def create_table(self, connection: Connection) -> None:
+        run_sql = lambda statement: connection.execute(text(statement))
+        run_sql(f"DROP TABLE IF EXISTS tiger_data.{self.table_name};")
+        run_sql(
+            f"CREATE TABLE tiger_data.{self.table_name}(CONSTRAINT pk_{self.table_name} PRIMARY KEY (gid)) INHERITS(tiger.addrfeat);"
+        )
+        run_sql(
+            f"ALTER TABLE tiger_data.{self.table_name} ALTER COLUMN statefp SET DEFAULT '{self.state_code}';"
+        )
+
+    def finalized_table(self, connection: Connection):
+        run_sql = lambda statement: connection.execute(text(statement))
+        self.fixup_staging_schema(connection)
+        with connection.begin():
+            run_sql(
+                f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
+            )
+            run_sql(f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');")
+
+
+
 class LoadStateFeatures(luigi.WrapperTask):
     year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     state_usps = luigi.Parameter()
@@ -642,6 +666,7 @@ class LoadStateFeatures(luigi.WrapperTask):
         yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
         yield LoadEdges(year=self.year, state_usps=self.state_usps)
         yield LoadAddr(year=self.year, state_usps=self.state_usps)
+        yield LoadAddrFeat(year=self.year, state_usps=self.state_usps)
 
         if self.load_place_features or self.load_all:
             yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)

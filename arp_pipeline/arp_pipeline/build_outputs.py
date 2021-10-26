@@ -4,6 +4,7 @@ import shutil
 import tempfile
 import warnings
 from functools import cached_property
+from typing import List
 
 import luigi
 import pandas as pd
@@ -16,7 +17,10 @@ from arp_pipeline.census import LoadTractLevelACSData
 from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, get_output_path
 from arp_pipeline.hud import LoadHUDData
 from arp_pipeline.models import metadata
-from arp_pipeline.models.output import get_address_income_fact_for_state, base_income_fact_table
+from arp_pipeline.models.output import (
+    base_income_fact_table,
+    get_address_income_fact_for_state,
+)
 
 DB_CONN = CONFIG["DB_CONN"]
 
@@ -36,12 +40,14 @@ class CreateBaseIncomeFactTable(luigi.Task):
         )
 
     def run(self):
-        db_name = self.output().connection_string.split('/')[-1]
+        db_name = self.output().connection_string.split("/")[-1]
         with self.output().engine.connect() as conn:
             run_sql = lambda statement: conn.execute(text(statement))
             with conn.begin():
                 run_sql(f"CREATE SCHEMA IF NOT EXISTS {self.table.schema}")
-                run_sql(f"ALTER DATABASE {db_name} SET search_path TO \"$user\",public,tiger,output;")
+                run_sql(
+                    f'ALTER DATABASE {db_name} SET search_path TO "$user",public,tiger,output;'
+                )
             self.table.create(self.output().engine, checkfirst=True)
             with conn.begin():
                 self.output().touch()
@@ -236,7 +242,7 @@ class CreateAddressIncomeCSV(luigi.Task):
         with self.input().open() as f:
             frame = pd.read_parquet(f)
         with self.output().open("wb") as f:
-            frame.to_csv(f, index=False, compression='zip')
+            frame.to_csv(f, index=False, compression="zip")
 
 
 class CreateAllOutputForState(luigi.WrapperTask):
@@ -246,3 +252,11 @@ class CreateAllOutputForState(luigi.WrapperTask):
         yield CreateAddressIncomeParquet(state_usps=self.state_usps)
         yield CreateAddressIncomePGDump(state_usps=self.state_usps)
         yield CreateAddressIncomeCSV(state_usps=self.state_usps)
+
+
+class CreateAllOutputForStates(luigi.WrapperTask):
+    state_uspses: List[str] = luigi.ListParameter()
+
+    def requires(self):
+        for state_usps in self.state_uspses:
+            yield CreateAllOutputForState(state_usps=state_usps)
