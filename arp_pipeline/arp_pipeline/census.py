@@ -59,7 +59,6 @@ class LoadTractLevelACSData(luigi.Task):
             self._fips_from_censusdata_censusgeo
         )
         self.data.replace(to_replace=NULL_SIGNALS, value=np.nan, inplace=True)
-        print("hello")
 
     def _load(self, connection: Connection) -> None:
         run_sql = lambda statement: connection.execute(text(statement))
