@@ -1,5 +1,6 @@
 """Generate lookup tables for addresses and geographies."""
 import os
+import pathlib
 import shutil
 import tempfile
 import warnings
@@ -189,7 +190,7 @@ class CreateAddressIncomeParquet(luigi.Task):
                 frame.to_parquet(f, index=False)
 
 
-class CreateAddressIncomePGDump(luigi.Task):
+class CreateStateAddressIncomePGDump(luigi.Task):
     state_usps: str = luigi.Parameter(default="OH")
 
     @property
@@ -221,6 +222,39 @@ class CreateAddressIncomePGDump(luigi.Task):
                 DB_CONN,
             ]
             pg_dump_cmd()
+            pathlib.Path(self.output_path).parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(tmp_out_path, self.output_path)
+
+
+class CreateOverallAddressIncomePGDump(luigi.Task):
+
+    @property
+    def output_path(self) -> str:
+        return get_output_path(
+            f"2019/national/address-income.sql"
+        )
+
+    def output(self) -> luigi.LocalTarget:
+        return luigi.LocalTarget(
+            self.output_path,
+            format=luigi.format.Nop,
+        )
+
+    def run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            tmp_out_path = os.path.join(
+                tmpdirname, f"adress-income-national.sql"
+            )
+            pg_dump_cmd = pg_dump[
+                "-Fc",
+                "-f",
+                tmp_out_path,
+                "--table",
+                "public.address_income_fact",
+                DB_CONN,
+            ]
+            pg_dump_cmd()
+            pathlib.Path(self.output_path).parent.mkdir(parents=True, exist_ok=True)
             shutil.move(tmp_out_path, self.output_path)
 
 
@@ -250,7 +284,7 @@ class CreateAllOutputForState(luigi.WrapperTask):
 
     def requires(self):
         yield CreateAddressIncomeParquet(state_usps=self.state_usps)
-        yield CreateAddressIncomePGDump(state_usps=self.state_usps)
+        yield CreateStateAddressIncomePGDump(state_usps=self.state_usps)
         yield CreateAddressIncomeCSV(state_usps=self.state_usps)
 
 

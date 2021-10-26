@@ -118,7 +118,7 @@ base_income_fact_table = Table(
         "latitude",
         Float(precision=53),
     ),
-    schema="public",
+    schema="output",
 )
 
 
