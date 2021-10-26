@@ -646,8 +646,9 @@ class LoadAddrFeat(LoadCountyFeature, luigi.Task):
             run_sql(
                 f"SELECT loader_load_staged_data(lower('{self.table_name}'), lower('{self.table_name}'));"
             )
-            run_sql(f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');")
-
+            run_sql(
+                f"ALTER TABLE tiger_data.{self.table_name} ADD CONSTRAINT chk_statefp CHECK (statefp = '{self.state_code}');"
+            )
 
 
 class LoadStateFeatures(luigi.WrapperTask):
@@ -666,7 +667,6 @@ class LoadStateFeatures(luigi.WrapperTask):
         yield LoadFeatureNames(year=self.year, state_usps=self.state_usps)
         yield LoadEdges(year=self.year, state_usps=self.state_usps)
         yield LoadAddr(year=self.year, state_usps=self.state_usps)
-        yield LoadAddrFeat(year=self.year, state_usps=self.state_usps)
 
         if self.load_place_features or self.load_all:
             yield LoadStatePlaceFeature(year=self.year, state_usps=self.state_usps)
