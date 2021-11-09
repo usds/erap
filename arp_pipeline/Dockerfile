@@ -6,5 +6,6 @@ RUN conda install --quiet --yes \
     'openpyxl' \
     'pyarrow' \
     'cenpy' \
-    'geopandas'
+    'geopandas' \
+    'statsmodels'
 RUN /opt/conda/bin/pip install cpi
