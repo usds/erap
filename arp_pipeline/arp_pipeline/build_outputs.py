@@ -279,28 +279,6 @@ class CreateAddressIncomeCSV(luigi.Task):
             frame.to_csv(f, index=False, compression="zip")
 
 
-class CreateAddressIncomeSQLLite(luigi.Task):
-     state_usps: str = luigi.Parameter(default="OH")
-
-    def requires(self) -> CreateAddressIncomeParquet:
-        return CreateAddressIncomeParquet(state_usps=self.state_usps)
-
-    def output(self) -> luigi.LocalTarget:
-        return luigi.LocalTarget(
-            get_output_path(
-                f"2019/{self.state_usps}/address-income-{self.state_usps.lower()}.sqlite3",
-            ),
-            format=luigi.format.Nop,
-        )
-
-    def run(self) -> None:
-        with self.input().open() as f:
-            frame = pd.read_parquet(f)
-        with self.output().open("wb") as f:
-            frame.
-
-
-
 class CreateAllOutputForState(luigi.WrapperTask):
     state_usps: str = luigi.Parameter()
 
