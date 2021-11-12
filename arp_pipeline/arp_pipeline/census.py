@@ -16,7 +16,7 @@ DB_CONN = CONFIG["DB_CONN"]
 class LoadTractLevelACSData(luigi.Task):
     """Load ACS data for a set of variables."""
 
-    acs_variables: List[str] = luigi.ListParameter(default=["B25119_003E"])
+    acs_variables: List[str] = luigi.ListParameter(default=["B25119_003E", 'B19013_001E'])
     year: int = luigi.IntParameter(default=2019)
 
     target_table = "acs_tract_data"

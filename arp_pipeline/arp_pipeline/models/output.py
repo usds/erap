@@ -18,6 +18,7 @@ base_income_fact_table = Table(
     Column("does_income_qualify", Boolean, index=True, default=False),
     Column("hud_income_limit", Integer),
     Column("tract_median_renter_income", Float),
+    Column("tract_median_income", Float),
     Column(
         "state",
         String(length=2),
