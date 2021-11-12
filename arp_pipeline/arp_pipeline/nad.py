@@ -6,11 +6,10 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from plumbum.cmd import ogr2ogr
 from sqlalchemy import text
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import CONFIG, get_storage_path
 from arp_pipeline.download_utils import download_zip
 
-DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class DownloadNADZip(luigi.Task):
@@ -20,7 +19,7 @@ class DownloadNADZip(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, f"data/nad/{self.version}/NAD_r{self.version}.zip"),
+            get_storage_path(f"nad/{self.version}/NAD_r{self.version}.zip"),
             format=luigi.format.Nop,
         )
 
@@ -38,7 +37,7 @@ class UnzipNADData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(CWD, f"data/nad/{self.version}/NAD_r{self.version}.gdb"),
+            get_storage_path(f"nad/{self.version}/NAD_r{self.version}.gdb"),
             format=luigi.format.Nop,
         )
 
@@ -56,10 +55,9 @@ class LoadNADData(luigi.Task):
         return UnzipNADData(version=self.version)
 
     def output(self) -> SQLAlchemyTarget:
-        target_table = "addresses.nad"
         return SQLAlchemyTarget(
             connection_string=DB_CONN,
-            target_table=target_table,
+            target_table="addresses.nad",
             update_id=f"create_{self.version}_nad",
         )
 
@@ -97,8 +95,6 @@ class LoadNADData(luigi.Task):
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses_staging CASCADE;")
                 run_sql("CREATE SCHEMA addresses_staging;")
-                run_sql("DROP SCHEMA IF EXISTS addresses CASCADE;")
-                run_sql("CREATE SCHEMA addresses;")
             print(ogr2ogr_cmd())
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses CASCADE;")
@@ -108,3 +104,4 @@ class LoadNADData(luigi.Task):
                 run_sql(
                     "CREATE INDEX idx_nad_address_state on addresses.nad USING btree (state);"
                 )
+                self.output().touch()

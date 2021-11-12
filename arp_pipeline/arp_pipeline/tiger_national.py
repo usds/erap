@@ -8,12 +8,11 @@ from luigi.contrib.postgres import PostgresTarget
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import get_db_connection_string
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, get_storage_path
 from arp_pipeline.download_utils import download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd, run_raw_sql, staging_schema
 
-DB_CONN = get_db_connection_string()
-CWD = os.path.abspath(os.getcwd())
+DB_CONN = CONFIG["DB_CONN"]
 
 
 class DataScope(str, Enum):
@@ -22,7 +21,7 @@ class DataScope(str, Enum):
 
 
 class DownloadTigerData(luigi.Task):
-    year: int = luigi.IntParameter(default=2020)
+    year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     feature_name: str = luigi.Parameter()
     data_scope: DataScope = luigi.EnumParameter(
         enum=DataScope, default=DataScope.NATIONAL
@@ -35,14 +34,13 @@ class DownloadTigerData(luigi.Task):
 
     @property
     def source_path(self) -> str:
-        """The path on www2.census.gov/geo/tiger/TIGER2020/ to find the files"""
+        """The path on www2.census.gov/geo/tiger/TIGER20NN/ to find the files"""
         return f"{self.feature_name.upper()}/{self.file_name}"
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                CWD,
-                f"data/tiger/{self.year}/{self.data_scope}/{self.feature_name}/{self.file_name}",
+            get_storage_path(
+                f"tiger/{self.year}/{self.data_scope}/{self.feature_name}/{self.file_name}",
             ),
             format=luigi.format.Nop,
         )
@@ -54,7 +52,7 @@ class DownloadTigerData(luigi.Task):
 
 
 class UnzipNationalTigerData(luigi.Task):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     feature_name = luigi.Parameter()
     data_scope: DataScope = luigi.EnumParameter(
         enum=DataScope, default=DataScope.NATIONAL
@@ -65,12 +63,9 @@ class UnzipNationalTigerData(luigi.Task):
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
-            os.path.join(
-                CWD,
-                (
-                    f"data/tiger/{self.year}/{self.data_scope}/{self.feature_name.lower()}/"
-                    f"tl_{self.year}_us_{self.feature_name.lower()}.dbf"
-                ),
+            get_storage_path(
+                f"tiger/{self.year}/{self.data_scope}/{self.feature_name.lower()}/"
+                f"tl_{self.year}_us_{self.feature_name.lower()}.dbf"
             ),
             format=luigi.format.Nop,
         )
@@ -83,8 +78,9 @@ class UnzipNationalTigerData(luigi.Task):
 
 
 class LoadStateData(luigi.Task):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     resources = {"max_workers": 1}
+    priority = 100
 
     def requires(self) -> UnzipNationalTigerData:
         return UnzipNationalTigerData(year=self.year, feature_name="state")
@@ -132,8 +128,9 @@ class LoadStateData(luigi.Task):
 
 
 class LoadCountyData(luigi.Task):
-    year = luigi.IntParameter(default=2020)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
     resources = {"max_workers": 1}
+    priority = 90
 
     def requires(self) -> UnzipNationalTigerData:
         return UnzipNationalTigerData(year=self.year, feature_name="county")
@@ -203,7 +200,7 @@ class LoadCountyData(luigi.Task):
 
 
 class LoadNationalData(luigi.WrapperTask):
-    year = luigi.IntParameter(default=2019)
+    year = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 
     def requires(self) -> Iterable[Union[LoadCountyData, LoadStateData]]:
         yield LoadStateData(year=self.year)

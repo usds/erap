@@ -1,0 +1,3 @@
+[submodule "erap-data"]
+	path = erap-data
+	url = https://github.com/usds/erap-data.git
