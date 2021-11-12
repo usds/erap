@@ -1,0 +1,3 @@
+#!/bin/bash
+
+poetry run python -m luigi --scheduler-host scheduler --module arp_pipeline.build_outputs CreateAllOutputForState --state-usps=$1 --workers=4
