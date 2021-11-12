@@ -60,6 +60,5 @@ While you'll need to work through the dependencies in the luigi steps to know ex
 
 ## What has not been done
 
-1. Currently, we pull ONLY renter incomes. You'll want to also pull a census variable for the non-renter income to backfill data from `B19013_001E` where `B25119_003E` is null and update the output tables and the query in `build_outputs.CreateAddressIncomeFact.run`
-2. The data need careful QA. You'll want to sample addresses, run them through some alternative geocoder (like the census one), then do your own lookups against the census tables and income limits data to verify that the output tables are correct.
-3. We don't really know what he final outputs should be --- the goal so far was to build a pipeline where the final outputs could be adjusted based on grantee needs, and that's about where we are.
+1. The data need careful QA. You'll want to sample addresses, run them through some alternative geocoder (like the census one), then do your own lookups against the census tables and income limits data to verify that the output tables are correct.
+2. We don't really know what he final outputs should be --- the goal so far was to build a pipeline where the final outputs could be adjusted based on grantee needs, and that's about where we are.
