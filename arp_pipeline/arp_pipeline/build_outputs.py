@@ -249,8 +249,8 @@ class CreateOverallAddressIncomePGDump(luigi.Task):
                 "-Fc",
                 "-f",
                 tmp_out_path,
-                "--table",
-                "public.address_income_fact",
+                "--schema",
+                "output",
                 DB_CONN,
             ]
             pg_dump_cmd()
