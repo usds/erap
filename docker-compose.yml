@@ -30,3 +30,9 @@ services:
     build: ./notebooks
     links:
       - "etl_database:db"
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
