@@ -22,7 +22,7 @@ CensusData = "^1.15"
 [tool.poetry.dev-dependencies]
 mypy = "^0.910"
 black = "^21.9b0"
-ipython = "^7.31.1"
+ipython = "^8.10.0"
 pylint = "^2.11.1"
 isort = "^5.9.3"
 types-requests = "^2.25.8"
