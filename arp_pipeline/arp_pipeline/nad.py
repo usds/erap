@@ -10,12 +10,12 @@ from arp_pipeline.config import CONFIG, get_storage_path
 from arp_pipeline.download_utils import download_zip
 
 DB_CONN = CONFIG["DB_CONN"]
-
+NAD_DEFAULT_VERSION = 13
 
 class DownloadNADZip(luigi.Task):
     """Download the national address database from the U.S. Department of Transportation"""
 
-    version: int = luigi.IntParameter(default=7)
+    version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
@@ -30,7 +30,7 @@ class DownloadNADZip(luigi.Task):
 
 
 class UnzipNADData(luigi.Task):
-    version: int = luigi.IntParameter(default=7)
+    version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
 
     def requires(self) -> DownloadNADZip:
         return DownloadNADZip(version=self.version)
@@ -49,12 +49,13 @@ class UnzipNADData(luigi.Task):
 
 
 class LoadNADData(luigi.Task):
-    version: int = luigi.IntParameter(default=7)
+    version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
 
-    def requires(self) -> UnzipNADData:
-        return UnzipNADData(version=self.version)
+    # def requires(self) -> UnzipNADData:
+    #     return UnzipNADData(version=self.version)
 
     def output(self) -> SQLAlchemyTarget:
+        print("IN OUTPUT YOLOOLOL")
         return SQLAlchemyTarget(
             connection_string=DB_CONN,
             target_table="addresses.nad",
@@ -73,10 +74,15 @@ class LoadNADData(luigi.Task):
         return base
 
     def run(self) -> None:
+        print("IN RUN HIHIHI")
+        print(get_storage_path(f"nad/{self.version}/NAD_r{self.version}.gdb"))
+        print("finished printing storage path")
         with self.output().engine.connect() as conn:
+            
             run_sql = lambda statement: conn.execute(text(statement))
-            gdb_path = os.path.abspath(self.input().path)
+            gdb_path = os.path.abspath(get_storage_path(f"nad/{self.version}/NAD_r{self.version}.gdb"))
             gdb_dir = os.path.dirname(gdb_path)
+            print("kicking off ogr2ogr cmd")
             ogr2ogr_cmd = (
                 ogr2ogr[
                     "-overwrite",
@@ -92,10 +98,12 @@ class LoadNADData(luigi.Task):
                 .with_cwd(gdb_dir)
                 .with_env(PG_USE_COPY="YES")
             )
+            print("kicking off first conn")
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses_staging CASCADE;")
                 run_sql("CREATE SCHEMA addresses_staging;")
             print(ogr2ogr_cmd())
+            print("kicking off second conn")
             with conn.begin():
                 run_sql("DROP SCHEMA IF EXISTS addresses CASCADE;")
                 run_sql("CREATE SCHEMA addresses;")

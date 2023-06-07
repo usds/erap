@@ -19,6 +19,7 @@ from arp_pipeline.tiger_state import LoadStateFeatures
 
 DB_CONN = CONFIG["DB_CONN"]
 
+NAD_DEFAULT_VERSION = 13
 
 class CreateHUDCBSALookups(luigi.Task):
     fiscal_year: int = luigi.IntParameter(default=21)
@@ -59,7 +60,7 @@ class CreateHUDCBSALookups(luigi.Task):
                         income_limits.cbsasub,
                         hud.fair_market_rents.the_geom
                     from hud.income_limits
-                    join hud.fair_market_rents on fair_market_rents.fmr_code = hud.income_limits.cbsasub;
+                    join hud.fair_market_rents on fair_market_rents.fy23_fmr_1 = hud.income_limits.cbsasub;
                 """
                 )
                 self.output().touch()
@@ -68,7 +69,7 @@ class CreateHUDCBSALookups(luigi.Task):
 class CreateHUDAddressLookups(luigi.Task):
 
     fiscal_year: int = luigi.IntParameter(default=21)
-    nad_version: int = luigi.IntParameter(default=7)
+    nad_version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
     state_usps: str = luigi.Parameter(default="OH")
 
     def requires(self):
@@ -122,7 +123,7 @@ class CreateHUDAddressLookups(luigi.Task):
 
 
 class CreateTractLookups(luigi.Task):
-    nad_version: int = luigi.IntParameter(default=7)
+    nad_version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
     state_usps: str = luigi.Parameter(default="OH")
     census_year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 

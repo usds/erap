@@ -10,13 +10,19 @@ services:
     image: postgis/postgis
     shm_size: 1g
     env_file: ['./arp_pipeline/db.env']
+    expose:
+      - "5432" # Publishes 5432 to other containers but NOT to host machine
+    ports:
+      - "5433:5432"
     volumes:
       - ./data/postgresql/data:/var/lib/postgresql/data
+    command: -p 5432
   arp_pipeline:
     build: ./arp_pipeline
     volumes:
       - ./erap-data/:/output
       - ./data:/data
+      - ./arp_pipeline/arp_pipeline/:/app/arp_pipeline
     links:
       - "etl_database:db"
   scheduler:
@@ -24,6 +30,7 @@ services:
     command: poetry run luigid --address 0.0.0.0 --port 8082 --pidfile /luigid/luigid.pid --state-path /luigid/state.dat
     volumes:
       - ./luigid:/luigid
+      - ./arp_pipeline/arp_pipeline/:/app/arp_pipeline
     ports:
       - "8082:8082"
   jupyter:

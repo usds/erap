@@ -48,9 +48,13 @@ class DownloadHUDFMRGeos(luigi.Task):
         )
 
     def run(self) -> None:
+        # old_url = (
+        #     "https://opendata.arcgis.com/api/v3/datasets/"
+        #     "12d2516901f947b5bb4da4e780e35f07_0/downloads/data?format=shp&spatialRefId=4326"
+        # )
         url = (
             "https://opendata.arcgis.com/api/v3/datasets/"
-            "12d2516901f947b5bb4da4e780e35f07_0/downloads/data?format=shp&spatialRefId=4326"
+            "12d2516901f947b5bb4da4e780e35f07_1/downloads/data?format=shp&spatialRefId=4326&where=1%3D1"
         )
         with self.output().open("wb") as f:
             f.write(download_zip(url))
@@ -160,6 +164,6 @@ class LoadHUDFMRGeos(luigi.Task):
                     f"CREATE INDEX hud_{self.table_name}_the_geom_gist ON {self.target_table} USING gist(the_geom);"
                 )
                 run_sql(
-                    f"CREATE INDEX idx_{self.table_name}_fmr_code ON {self.target_table} USING btree (fmr_code);"
+                    f"CREATE INDEX idx_{self.table_name}_fmr_code ON {self.target_table} USING btree (fy23_fmr_1);" # fy23_fmr_1 is the hud fmr code
                 )
                 self.output().touch()
