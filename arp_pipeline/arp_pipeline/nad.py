@@ -50,8 +50,8 @@ class UnzipNADData(luigi.Task):
 class LoadNADData(luigi.Task):
     version: int = luigi.IntParameter(default=DEFAULT_NAD_VERSION)
 
-    # def requires(self) -> UnzipNADData:
-    #     return UnzipNADData(version=self.version)
+    def requires(self) -> UnzipNADData:
+        return UnzipNADData(version=self.version)
 
     def output(self) -> SQLAlchemyTarget:
         return SQLAlchemyTarget(

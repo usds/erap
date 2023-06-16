@@ -7,7 +7,7 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 from sqlalchemy.engine import Connection
 
-from arp_pipeline.config import CONFIG, get_storage_path
+from arp_pipeline.config import CONFIG, get_storage_path, DEFAULT_HUD_YEAR
 from arp_pipeline.data_utils import clean_frame
 from arp_pipeline.download_utils import download_file, download_zip
 from arp_pipeline.tiger_utils import get_shp2pgsql_cmd
@@ -48,10 +48,6 @@ class DownloadHUDFMRGeos(luigi.Task):
         )
 
     def run(self) -> None:
-        # old_url = (
-        #     "https://opendata.arcgis.com/api/v3/datasets/"
-        #     "12d2516901f947b5bb4da4e780e35f07_0/downloads/data?format=shp&spatialRefId=4326"
-        # )
         url = (
             "https://opendata.arcgis.com/api/v3/datasets/"
             "12d2516901f947b5bb4da4e780e35f07_1/downloads/data?format=shp&spatialRefId=4326&where=1%3D1"
