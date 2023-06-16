@@ -18,7 +18,7 @@ DB_CONN = CONFIG["DB_CONN"]
 class DownloadHUDIncomeLimits(luigi.Task):
     """Download the xlsx of all income limit data for section 8 housing."""
 
-    fiscal_year: int = luigi.IntParameter(default=21)
+    fiscal_year: int = luigi.IntParameter(default=DEFAULT_HUD_YEAR)
 
     def output(self) -> luigi.LocalTarget:
         return luigi.LocalTarget(
@@ -75,7 +75,7 @@ class UnzipHUDFMRGeos(luigi.Task):
 
 
 class LoadHUDData(luigi.Task):
-    fiscal_year: int = luigi.IntParameter(default=21)
+    fiscal_year: int = luigi.IntParameter(default=DEFAULT_HUD_YEAR)
 
     def requires(self) -> DownloadHUDIncomeLimits:
         return DownloadHUDIncomeLimits(fiscal_year=self.fiscal_year)

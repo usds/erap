@@ -5,7 +5,7 @@ import luigi
 from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import text
 
-from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR, DEFAULT_NAD_VERSION, DEFAULT_HUD_YEAR
 from arp_pipeline.hud import LoadHUDData, LoadHUDFMRGeos
 from arp_pipeline.models import metadata
 from arp_pipeline.models.address_income import (
@@ -19,10 +19,8 @@ from arp_pipeline.tiger_state import LoadStateFeatures
 
 DB_CONN = CONFIG["DB_CONN"]
 
-NAD_DEFAULT_VERSION = 13
-
 class CreateHUDCBSALookups(luigi.Task):
-    fiscal_year: int = luigi.IntParameter(default=21)
+    fiscal_year: int = luigi.IntParameter(default=DEFAULT_HUD_YEAR)
 
     def requires(self):
         yield LoadHUDData(fiscal_year=self.fiscal_year)
@@ -68,8 +66,8 @@ class CreateHUDCBSALookups(luigi.Task):
 
 class CreateHUDAddressLookups(luigi.Task):
 
-    fiscal_year: int = luigi.IntParameter(default=21)
-    nad_version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
+    fiscal_year: int = luigi.IntParameter(default=DEFAULT_HUD_YEAR)
+    nad_version: int = luigi.IntParameter(default=DEFAULT_NAD_VERSION)
     state_usps: str = luigi.Parameter(default="OH")
 
     def requires(self):
@@ -123,7 +121,7 @@ class CreateHUDAddressLookups(luigi.Task):
 
 
 class CreateTractLookups(luigi.Task):
-    nad_version: int = luigi.IntParameter(default=NAD_DEFAULT_VERSION)
+    nad_version: int = luigi.IntParameter(default=DEFAULT_NAD_VERSION)
     state_usps: str = luigi.Parameter(default="OH")
     census_year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 

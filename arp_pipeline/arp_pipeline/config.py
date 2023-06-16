@@ -40,3 +40,5 @@ def get_output_path(output_subdir: Optional[str] = None) -> str:
 
 
 DEFAULT_CENSUS_YEAR = int(CONFIG.get("DEFAULT_CENSUS_YEAR", 2019))
+DEFAULT_HUD_YEAR = int(CONFIG.get("DEFAULT_HUD_YEAR", 21))
+DEFAULT_NAD_VERSION = int(CONFIG.get("DEFAULT_NAD_VERSION", 13))

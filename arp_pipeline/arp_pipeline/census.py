@@ -8,7 +8,7 @@ from luigi.contrib.sqla import SQLAlchemyTarget
 from sqlalchemy import String, text
 from sqlalchemy.engine import Connection
 
-from arp_pipeline.config import CONFIG
+from arp_pipeline.config import CONFIG, DEFAULT_CENSUS_YEAR
 
 DB_CONN = CONFIG["DB_CONN"]
 
@@ -17,7 +17,7 @@ class LoadTractLevelACSData(luigi.Task):
     """Load ACS data for a set of variables."""
 
     acs_variables: List[str] = luigi.ListParameter(default=["B25119_003E", 'B19013_001E'])
-    year: int = luigi.IntParameter(default=2019)
+    year: int = luigi.IntParameter(default=DEFAULT_CENSUS_YEAR)
 
     target_table = "acs_tract_data"
 
